@@ -1,0 +1,47 @@
+{
+    "CIKMCUP": {
+        "path": "datasets/CIKMCUP2016_Track2_DIGINETICA/dataset-train-diginetica",
+        "files": {
+            "product_categories.csv": {
+                "sep": ";"
+            },
+            "products.csv": {
+                "sep": ";"
+            },
+            "train-clicks.csv": {
+                "sep": ";"
+            },
+            "train-item-views.csv": {
+                "sep": ";"
+            },
+            "train-purchases.csv": {
+                "sep": ";"
+            },
+            "train-queries.csv": {
+                "sep": ";"
+            }
+        }
+    },
+    "YOOCHOOSE": {
+        "path": "datasets/yoochoose",
+        "files": {
+            "yoochoose-buys.dat": {
+                "columns": [
+                    "sessionId",
+                    "timestamp",
+                    "itemId",
+                    "price",
+                    "quantity"
+                ]
+            },
+            "yoochoose-clicks.dat": {
+                "columns": [
+                    "sessionId",
+                    "timestamp",
+                    "itemId",
+                    "category"
+                ]
+            }
+        }
+    }
+}
