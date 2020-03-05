@@ -1,4 +1,5 @@
 from collections import Counter
+import more_itertools
 import random
 from tqdm import tqdm
 from scipy.sparse import csr_matrix
@@ -143,7 +144,7 @@ def load_yoochoose_dataset(reinitialize=False):
     if not reinitialize and pickle_save_path.exists():
         print("found yoochoose cache")
         with open(pickle_save_path, "rb") as file:
-            padded_output, output, column_names, keymap = pickle.load(file)
+            output, column_names, keymap = pickle.load(file)
     else:
         print("initializing yoochoose dataset...")
 
@@ -184,20 +185,48 @@ def load_yoochoose_dataset(reinitialize=False):
         print("shuffling dataset...")
         random.shuffle(output)
 
-        print("getting max session length")
-        max_sess_len = max([len(i) for i in output])
-        max_sess_len = 8
-
-        print(f"padding dataset so all sessions length {max_sess_len}")
-        padded_output = np.zeros((len(output), max_sess_len, 2), dtype=np.uint32)
-        for i in range(len(output)):
-            padded_output[i][:min(max_sess_len, len(output[i]))] = output[i][:min(max_sess_len, len(output[i]))]
-
         print("saving output...")
         with open(pickle_save_path, "wb+") as file:
-            pickle.dump((padded_output, output, column_names, keymap), file)
+            pickle.dump((output, column_names, keymap), file)
 
-    return padded_output, output, column_names, keymap
+    return output, column_names, keymap
+
+def batchify_bin_by_sess_len(sessions, batch_size=128, split_long_sess=False):
+    """bin dataset by session length and turn sessions into batches
+    
+    Arguments:
+        sessions {list of sessions} -- a list of variable length sessions. will be used as the keys to the session lengths
+    
+    Keyword Arguments:
+        batch_size {int} -- the batch size of each session (default: {128})
+        split_long_sess {bool} -- augment dataset by sampling sessions without at least batch_size items. True has far higher memory and time costs (default: {False})
+    """
+    binned_sessions = more_itertools.bucket(sessions, len)
+    session_lengths = list(binned_sessions) # gets the list of session lengths, not the list of list of sessions
+    if not split_long_sess:
+        random.shuffle(session_lengths)
+        for session_bin_length in session_lengths:
+            session_bin = list(binned_sessions[session_bin_length])
+            for batch in more_itertools.sliced(session_bin, batch_size):
+                batch = list(batch)
+                # print(batch_size, batch)
+                if len(batch) == batch_size:
+                    yield np.array([list(lst) for lst in batch])
+    else:
+        raise Exception("not implemented yet")
+        binned_sessions = {k: list(binned_sessions[k]) for k in session_lengths}
+        # for session_bin_length in binned_sessions:
+            # if len(binned_sessions[session_bin_length]) < 
+
+def augment_negative_examples(session_batch, max_key):
+    pos_y = np.ones(len(session_batch))
+    neg_y = np.zeros(len(session_batch))
+    fake_X = np.random.randint(0, max_key, session_batch.shape)
+    y = np.concatenate((pos_y, neg_y))
+    X = np.concatenate((session_batch, fake_X))
+    indices = list(range(len(X)))
+    random.shuffle(indices)
+    return X[indices], y[indices]
 
 
 def train_val_test_split(*Xs, train_perc=.64, val_perc=.16):
