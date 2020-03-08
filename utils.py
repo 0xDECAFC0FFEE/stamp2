@@ -207,6 +207,7 @@ def batchify_bin_by_sess_len(sessions, batch_size=128, split_long_sess=False):
         random.shuffle(session_lengths)
         for session_bin_length in session_lengths:
             session_bin = list(binned_sessions[session_bin_length])
+            random.shuffle(session_bin)
             for batch in more_itertools.sliced(session_bin, batch_size):
                 batch = list(batch)
                 # print(batch_size, batch)
@@ -227,7 +228,6 @@ def augment_negative_examples(session_batch, max_key):
     indices = list(range(len(X)))
     random.shuffle(indices)
     return X[indices], y[indices]
-
 
 def train_val_test_split(*Xs, train_perc=.64, val_perc=.16):
     num_elems = len(Xs[0])
