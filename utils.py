@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import more_itertools
 import random
 from tqdm import tqdm
@@ -191,7 +191,64 @@ def load_yoochoose_dataset(reinitialize=False):
 
     return output, column_names, keymap
 
-def batchify_bin_by_sess_len(sessions, batch_size=128, split_long_sess=False):
+def sample_long_sessions(sessions, batch_size=1024, verbose=True):
+    """randomly sample subsessions from sessions that don't have batch_size examples.
+    
+    Arguments:
+        sessions {list of list of list of ints} -- a list of sessions. each session is a list of (itemid, click/buy)
+    
+    Keyword Arguments:
+        batch_size {int} -- large sessions don't have batch_size examplesdatetime A combination of a date and a time. Attributes: () (default: {1024})
+    """
+    print("sampling from long sessions...")
+
+    binned_sessions = more_itertools.bucket(sessions, len)
+    session_lengths = sorted(list(binned_sessions))
+    binned_sessions = {sess_len: binned_sessions[sess_len] for sess_len in session_lengths}
+
+    output_sessions = []
+
+    max_short_session = None # the maximum session length where all previous session lengths are also short
+    found_long_session = False
+    split_lengths = []
+    num_session_split = 0
+    
+    for session_length, sessions_bin in tqdm(binned_sessions.items()):
+        sessions_bin = list(sessions_bin)
+        if len(sessions_bin) >= batch_size:
+            if not found_long_session:
+                max_short_session = session_length
+            output_sessions += sessions_bin
+
+        else:
+            found_long_session = True
+            if session_length < 4:
+                raise Exception("seriously consider decreasing batch size")
+
+            if max_short_session == None:
+                max_short_session = session_length-1
+
+            items_to_sample = int(session_length/max_short_session)
+            for session in sessions_bin:
+                sample_lengths = np.random.random_integers(2, max_short_session, size=items_to_sample)
+                sample_indices = np.random.random_integers(0, session_length-max_short_session, size=items_to_sample) # not sure about off by 1 but it shouldn't matter
+                session = list(session)
+                for length, index in zip(sample_lengths, sample_indices):
+                    output_sessions += [session[index:index+length]]
+
+                num_session_split += 1
+
+                split_lengths+=list(sample_lengths)
+
+    if verbose:
+        if not found_long_session:
+            print("didn't find any long sessions")
+        else:
+            print(f"split {num_session_split} long sessions into {len(split_lengths)} sessions of length {Counter([sess for sess in split_lengths])}")
+            print(f"max short session length = {max_short_session}")
+    return output_sessions
+
+def batchify_bin_by_sess_len(sessions, batch_size=1024):
     """bin dataset by session length and turn sessions into batches
     
     Arguments:
@@ -199,25 +256,18 @@ def batchify_bin_by_sess_len(sessions, batch_size=128, split_long_sess=False):
     
     Keyword Arguments:
         batch_size {int} -- the batch size of each session (default: {128})
-        split_long_sess {bool} -- augment dataset by sampling sessions without at least batch_size items. True has far higher memory and time costs (default: {False})
     """
     binned_sessions = more_itertools.bucket(sessions, len)
-    session_lengths = list(binned_sessions) # gets the list of session lengths, not the list of list of sessions
-    if not split_long_sess:
-        random.shuffle(session_lengths)
-        for session_bin_length in session_lengths:
-            session_bin = list(binned_sessions[session_bin_length])
-            random.shuffle(session_bin)
-            for batch in more_itertools.sliced(session_bin, batch_size):
-                batch = list(batch)
-                # print(batch_size, batch)
-                if len(batch) == batch_size:
-                    yield np.array([list(lst) for lst in batch])
-    else:
-        raise Exception("not implemented yet")
-        binned_sessions = {k: list(binned_sessions[k]) for k in session_lengths}
-        # for session_bin_length in binned_sessions:
-            # if len(binned_sessions[session_bin_length]) < 
+    session_lengths_list = list(binned_sessions) # gets the list of session lengths, not the list of list of sessions
+    random.shuffle(session_lengths_list)
+    for session_bin_length in session_lengths_list:
+        session_bin = list(binned_sessions[session_bin_length])
+        random.shuffle(session_bin)
+        for batch in more_itertools.sliced(session_bin, batch_size):
+            batch = list(batch)
+            # print(batch_size, batch)
+            if len(batch) == batch_size:
+                yield np.array([list(lst) for lst in batch])
 
 def augment_negative_examples(session_batch, max_key):
     pos_y = np.ones(len(session_batch))
@@ -229,20 +279,21 @@ def augment_negative_examples(session_batch, max_key):
     random.shuffle(indices)
     return X[indices], y[indices]
 
-def train_val_test_split(*Xs, train_perc=.64, val_perc=.16):
+def train_val_test_split(*Xs, train_perc=.64, val_perc=.16, test_perc=.2):
+    assert(train_perc+val_perc+test_perc == 1)
     num_elems = len(Xs[0])
 
     train_cutoff = int(num_elems*train_perc)
     val_cutoff = int(num_elems*(train_perc+val_perc))
+    test_cutoff = int(num_elems*(train_perc+val_perc+test_perc))
 
-    split_Xs = [(X[:train_cutoff], X[train_cutoff:val_cutoff], X[val_cutoff:]) for X in Xs]
+    split_Xs = [(X[:train_cutoff], X[train_cutoff:val_cutoff], X[val_cutoff:test_cutoff]) for X in Xs]
 
     train = [X[0] for X in split_Xs]
     val = [X[1] for X in split_Xs]
     test = [X[2] for X in split_Xs]
 
     return train, val, test
-
 
 def batchify(*args, batch_size=1000, arg_len=None):
     if batch_size == -1:
