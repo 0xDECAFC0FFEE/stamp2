@@ -269,6 +269,37 @@ def batchify_bin_by_sess_len(sessions, batch_size=1024):
             if len(batch) == batch_size:
                 yield np.array([list(lst) for lst in batch])
 
+def mask_length(sessions, maskoff_vals=0, maskon_vals=1):
+    """take sessions, turn it into a numpy array and create a mask to ignore portions of sessions that don't matter
+    
+    Arguments:
+        sessions {list of variable length list of items} -- the sessions to turn into a numpy array. between each session, all dimensions must agree except the second
+    
+    Keyword Arguments:
+        maskoff_vals {int} -- values to use in mask for session items that don't exist (default: {0})
+        maskon_vals {int} -- values to use in mask for session items that exist (default: {1})
+
+    Returns:
+        sessions_array, mask -- sessions as a numpy array and the mask
+    """
+    
+    item_shape = sessions[0].shape
+    num_sessions = len(sessions)
+    sess_lengths = [len(sess) for sess in sessions]
+    max_sess_len = max(sess_lengths)
+
+    mask_bool = np.arange(max_sess_len).reshape(-1, max_sess_len).repeat(num_sessions, axis=0)
+    mask_bool = mask_bool < np.array(sess_lengths).reshape(num_sessions, -1)
+    mask = np.zeros(mask_bool.shape, dtype=np.float32)
+    mask[mask_bool == 1] = maskon_vals
+    mask[mask_bool == 0] = maskoff_vals
+
+    sessions_array = np.zeros([num_sessions, max_sess_len]+list(item_shape[1:]), dtype=sessions[0].dtype)
+    for length, i in zip(sess_lengths, range(num_sessions)):
+        sessions_array[i, :length] = sessions[i]
+
+    return sessions_array, mask
+
 def augment_negative_examples(session_batch, max_key):
     pos_y = np.ones(len(session_batch))
     neg_y = np.zeros(len(session_batch))
@@ -295,9 +326,14 @@ def train_val_test_split(*Xs, train_perc=.64, val_perc=.16, test_perc=.2):
 
     return train, val, test
 
-def batchify(*args, batch_size=1000, arg_len=None):
+def batchify(*args, batch_size=1000, arg_len=None, shuffle=False):
     if batch_size == -1:
         yield args
+
+    if shuffle:
+        args = list(zip(*args))
+        random.shuffle(args)
+        args = list(zip(*args))
 
     num_elems = len(args[0]) if arg_len == None else arg_len
     for i in range(0, num_elems, batch_size):
