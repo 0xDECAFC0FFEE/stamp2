@@ -12,6 +12,8 @@ from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import pickle
 from pathlib import Path
+import os
+import matplotlib.pyplot as plt
 
 def import_dataset(dataset, filename):
     print(f"importing dataset {filename}")
@@ -127,6 +129,28 @@ def contiguize_column(dataframe, column, keymap=None):
     dataframe[column] = dataframe[column].apply(f)
 
     return dataframe, keymap
+
+def save_accs(location, acc_lists, plt_kwargs):
+    location.mkdir(parents=True, exist_ok=True)
+    savedir = Path(location)
+    plt.clf()
+    plt.title(plt_kwargs["title"])
+    if "xlabel" in plt_kwargs:
+        plt.xlabel(plt_kwargs["xlabel"])
+    if "ylabel" in plt_kwargs:
+        plt.ylabel(plt_kwargs["ylabel"])
+    
+    plots = []
+    if "legend" in plt_kwargs:
+        for desc, acc_list in zip(plt_kwargs["legend"], acc_lists):
+            plots.append(plt.plot(acc_list, label=desc))
+        plt.legend()
+    
+    else:
+        for acc_list in acc_lists:
+            plots.append(plt.plot(acc_list))
+    
+    plt.savefig(savedir/(plt_kwargs["title"]+".png"))
 
 def load_yoochoose_dataset(reinitialize=False):
     """loads yoochoose dataset. 
@@ -286,11 +310,11 @@ def mask_length(sessions, maskoff_vals=0, maskon_vals=1):
     item_shape = sessions[0].shape
     num_sessions = len(sessions)
     sess_lengths = [len(sess) for sess in sessions]
-    max_sess_len = max(sess_lengths)
+    max_sess_len = int((max(sess_lengths)+3)/4)*4 # cutting the amount of retracing in half
 
     mask_bool = np.arange(max_sess_len).reshape(-1, max_sess_len).repeat(num_sessions, axis=0)
     mask_bool = mask_bool < np.array(sess_lengths).reshape(num_sessions, -1)
-    mask = np.zeros(mask_bool.shape, dtype=np.float32)
+    mask = np.zeros(mask_bool.shape, np.float32)
     mask[mask_bool == 1] = maskon_vals
     mask[mask_bool == 0] = maskoff_vals
 
