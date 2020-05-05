@@ -1,0 +1,23 @@
+// Grumbel_Softmax
+digraph {
+	node [style=filled width=3]
+	nodesep=0.25 pad=.1 ranksep=0.25
+	labelloc=t
+	bgcolor=grey64
+	color=black
+	color=grey64 style=filled
+	label="Grumbel Softmax"
+	F [label=Softmax height=.3 shape=box width=2]
+	E [label="x/τ" height=.3 shape=box width=2]
+	D [label=Sum height=.3 shape=box width=2]
+	C2 [label="Grumbel random sample" height=.3 shape=box width=2]
+	C1 [label="Log(x)" height=.3 shape=box width=2]
+	B [label=Softmax height=.3 shape=box width=2]
+	A [label=Input height=.3 shape=box width=2]
+	F -> E [dir=back]
+	E -> D [dir=back]
+	D -> C2 [dir=back]
+	D -> C1 [dir=back]
+	C1 -> B [dir=back]
+	B -> A [dir=back]
+}

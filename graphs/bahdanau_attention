@@ -1,0 +1,31 @@
+// bahdanau_attention
+digraph {
+	nodesep=0.25 pad=.1 ranksep=0.25
+	labelloc=t
+	bgcolor=grey64
+	label="Bahdanau Attention"
+	F [label=Output fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	E [label=Product fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	D [label=Softmax fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	Ca [label=Sum fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	C [label="Dot product" fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	{
+		asdf [label="" style=invis]
+		B2 [label="Context Vectors" fillcolor=grey80 height=.3 shape=box style=filled width=2]
+		B1 [label="FC-tanh" fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	}
+	{
+		rank=same
+		A [label=Input fillcolor=grey80 height=.3 shape=box style=filled width=2]
+		"0A" [label=Mask fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	}
+	F -> E [dir=back]
+	E -> D [dir=back]
+	D -> Ca [dir=back]
+	Ca -> C [dir=back]
+	C -> B1 [dir=back]
+	C -> B2 [dir=back]
+	E -> A [dir=back]
+	B1 -> A [dir=back]
+	Ca -> "0A" [dir=back]
+}

@@ -1,0 +1,29 @@
+// model
+digraph {
+	nodesep=0.25 pad=.1 ranksep=0.25
+	label="E2E CSRS"
+	labelloc=t
+	bgcolor=grey64
+	K [label=Output fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	J [label="FC-softmax" fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	I [label="FC-leaky relu" fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	H [label=Concat fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	G [label="FC-leaky relu" fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	F [label="FC-grumbel softmax" fillcolor=grey80 height=.3 shape=box style=filled width=2]
+	E [label="FC-leaky relu" fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	D [label=Attention1 fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	C [label="Bidirectional GRU" fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	B [label=Embedding fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	A [label=Input fillcolor=grey80 height=.3 shape=box style=filled width=3]
+	K -> J [dir=back]
+	J -> I [dir=back]
+	I -> H [dir=back]
+	H -> G [dir=back]
+	G -> F [dir=back]
+	F -> E [dir=back]
+	H -> E [dir=back]
+	E -> D [dir=back]
+	D -> C [dir=back]
+	C -> B [dir=back]
+	B -> A [dir=back]
+}
