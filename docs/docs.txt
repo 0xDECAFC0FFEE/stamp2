@@ -1,0 +1,45 @@
+=== dataset statistics ===
+post filter, pre sequence splitting dataset statistics:
+num train sessions: 7966257
+num train clicks: 31637239
+num train items: 37483
+num test sessions: 15324
+num test clicks: 71222
+num test items: 6751
+post sequence splitting 1/64 statistics:
+num train clicks 494330
+num test clicks 71222
+num total clicks 565552
+item index range [min_item_index, max_item_index]
+17695 items
+post sequence splitting 1/4 statistics:
+num train clicks 7909307
+num test clicks 71222
+num total clicks 7980529
+item index range [min_item_index, max_item_index]
+30661 items
+
+dataset is saved at 
+
+=== model notes ===
+
+Embedding layer:
+    lower dimensional embedding + dropout
+
+attention:
+    given a variable length vector A of fixed length vectors, construct a fixed length vector where each element is the output of a tanh * sigmoid. the sigmoid is a gate on the tanh that determines how important that vector is A. Importance is calculated from sigmoid of the dot product between the vector with the trainable importance vector
+    thus, attention is fundamentally a fully connected layer gated with sigmoid based on how similar the input is at that vector to the trainable importance vector.
+    attention masking: 
+        there is still the problem that the output of attention has to be a fixed length vector. 
+        to do this, the goal is to pad the attention vector with zeros
+        to do this, pad the output of u_{it}^T u_w with -infs so that the output of the softmax would be 0 and that these values won't affect the final ah
+
+clustering:
+    a softmax function with a stronger max
+    take the inputs to clustering, pass them through a fully connected with the size of the output being the number of clusters, and hard softmax it. the hard softmax values will be the cluster that the vector belongs in. 
+
+final attention layer on the clusters:
+    do a softmax on the cluster embedding dot a importance vector and a softmax on the embedding dot the same importance vector. use those softmaxes to compute a weighted sum of the cluster embedding with the importance vector.
+
+loss: 
+    nce loss
