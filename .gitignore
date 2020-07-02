@@ -5,3 +5,4 @@ data/raw
 data/processed
 src/features/STAMP/datas/data/*.txt
 src/features/STAMP/datas/*.data
+models/*

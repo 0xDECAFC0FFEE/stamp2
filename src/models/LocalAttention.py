@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Dense
 class LocalAttention(tf.keras.layers.Layer):
     def __init__(self, max_session_len, embedding_size):
-        super(LocalAttention, self).__init__()
+        super().__init__()
 
         print("max_session_len", max_session_len, "embedding_size", embedding_size)
         self.max_session_len = max_session_len

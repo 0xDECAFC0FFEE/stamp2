@@ -4,7 +4,7 @@ from src.features.build_features import save_folder as dataset_folder
 def import_stamp_yoochoose(perc):
     assert(perc in [4, 64])
     if perc == 4:
-        with open(dataset_folder/"dataset_4.pkl"), "rb" as handle:
+        with open(dataset_folder/"dataset_4.pkl", "rb") as handle:
             train_data, test_data, idx2item, n_items = pickle.load(handle)
     else:
         with open(dataset_folder/"dataset_64.pkl", "rb") as handle:

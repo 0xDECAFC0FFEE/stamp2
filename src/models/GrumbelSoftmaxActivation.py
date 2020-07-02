@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow_probability import distributions
 class GrumbelSoftmaxActivation(tf.keras.layers.Layer):
     def __init__(self, temp):
-        super(GrumbelSoftmaxActivation, self).__init__()
+        super().__init__()
         self.temp = temp
         self.gumbel = distributions.Gumbel(0, 1)
 
