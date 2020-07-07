@@ -55,14 +55,14 @@ def fix_dataset_samples(dataset):
     train_data = [sample.items_idxes for sample in train_data.samples]
     test_data = [sample.items_idxes for sample in test_data.samples]
 
-    # subtracting 1 from each index as there's an off by 1
-    train_data = [[idx-1 for idx in session] for session in train_data]
-    test_data = [[idx-1 for idx in session] for session in test_data]
+    # not subtracting 1 from each index as index 0 is reserved for masked values
+    train_data = [[idx for idx in session] for session in train_data]
+    test_data = [[idx for idx in session] for session in test_data]
 
-    # reversing idx -> item store and fixing key index off by 1
-    idx2item = {v-1:k for k, v in item2idx.items()}
+    # reversing idx -> item store
+    idx2item = {v:k for k, v in item2idx.items()}
 
-    return train_data, test_data, idx2item, n_items-1
+    return train_data, test_data, idx2item, n_items
 
 if __name__ == "__main__":
     assert(input_click_file.exists())
