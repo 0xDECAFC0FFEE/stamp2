@@ -14,12 +14,12 @@ from src import utils
 def default_config(n_items, **kwargs):
     config = {
         "n_items": n_items,
-        "embedding_size": 256,
-        "learning_rate": 0.01,
+        "embedding_size": 512,
+        "learning_rate": 0.001,
         "maskon": 1,
         "maskoff": 0,
-        "batch_size": 2048,
-        "epochs": 260,
+        "batch_size": 1024,
+        "epochs": 500,
     }
     config.update(kwargs)
     return config
@@ -49,8 +49,22 @@ class model(Model):
             bias_initializer=tf.zeros_initializer(),
             dtype=tf.float32
         )
+        self.hs2 = Dense(
+            config["embedding_size"], 
+            activation="tanh",
+            kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
+            bias_initializer=tf.zeros_initializer(),
+            dtype=tf.float32
+        )
 
         self.ht = Dense(
+            config["embedding_size"], 
+            activation="tanh",
+            kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
+            bias_initializer=tf.zeros_initializer(),
+            dtype=tf.float32
+        )
+        self.ht2 = Dense(
             config["embedding_size"], 
             activation="tanh",
             kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
@@ -74,9 +88,9 @@ class model(Model):
         mt = X_embeddings[:, -1]
         # print("mt", mt)
         
-        hs_val = self.hs(ms)
+        hs_val = self.hs2(self.hs(ms))
         # print("hs_val", hs_val)
-        ht_val = self.ht(mt)
+        ht_val = self.ht2(self.ht(mt))
         # print("ht_val", ht_val)
 
         prod = trilinear_product(hs_val, ht_val, self.item_embs)
@@ -84,7 +98,7 @@ class model(Model):
         logits = tf.math.sigmoid(prod)
         # print("logits", logits)
 
-        noise = tf.random.uniform(logits.shape, maxval=10e-6, dtype=tf.float32)
+        noise = tf.random.uniform(logits.shape, maxval=10e-8, dtype=tf.float32)
         logits = logits+noise
         # print("logits+noise", logits)
 
