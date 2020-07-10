@@ -18,6 +18,8 @@ from contextlib import contextmanager
 import sys
 from pathlib import Path
 import tensorflow as tf
+import datetime
+import shutil
 
 @contextmanager
 def cwd(path):
@@ -176,9 +178,16 @@ def masked_mean(values, bool_mask, axis=1, nan_val=0.0):
     return mean
 
 class TopModelSaver():
-    def __init__(self, location):
+    def __init__(self, location, config):
         self.prev_best = -np.inf
-        self.location = location
+        
+        self.root_folder = location
+        if self.root_folder.exists():
+            shutil.rmtree(self.root_folder)
+        self.model_weights_path = self.root_folder/"model_weights.h5py"
+        self.config_path = self.root_folder/"config.json"
+        self.source_code_path = self.root_folder/Path(config["file_loc"]).name
+        self.saved_config = config
 
     def reset(self):
         self.prev_best = -np.inf
@@ -189,11 +198,17 @@ class TopModelSaver():
         """
 
         if score > self.prev_best:
-            print(f"new best score: {score}; saving weights @ {self.location}")
-            model.save_weights(self.location, save_format="h5")
+            print(f"new best score: {score}; saving weights @ {self.root_folder}")
+            if not self.root_folder.exists():
+                os.makedirs(self.root_folder)
+                with open(self.config_path, "w+") as fp_handle:
+                    json.dump(self.saved_config, fp_handle)
+                shutil.copyfile(self.saved_config["file_loc"], self.source_code_path)
+
+            model.save_weights(str(self.model_weights_path), save_format="h5")
             self.prev_best = score
         else:
-            print(f"best score remains {self.prev_best}; not saving weights")
+            print(f"cur score {score}. best score remains {self.prev_best}; not saving weights")
 
 def flatten(iterable, max_depth=np.inf):
     """recursively flattens all iterable objects in iterable.
@@ -227,10 +242,20 @@ def flatten(iterable, max_depth=np.inf):
                 for sublist in iterator:
                     for item in recursive_step(sublist, max_depth=max_depth-1):
                         yield item
-            except AttributeError:
-                yield iterable
-            except TypeError:
+            except (AttributeError, TypeError):
                 yield iterable
 
     assert(max_depth >= 0)
     return recursive_step(iterable, max_depth)
+
+def get_experiment_name(desc=None):
+    time = datetime.datetime.now().strftime("%Y-%m-%d | %H:%M:%S |")
+    while True:
+        if desc == None:
+            desc = input("experiment name: ").strip()
+        
+        if "/" in desc:
+            print("please don't use /")
+            desc = None
+        else:
+            return f"expr {time} \"{desc}\""

@@ -8,6 +8,9 @@ from tensorflow.keras.layers import Flatten, Dense, Embedding, RNN, GRU, Bidirec
 from tensorflow.keras.preprocessing import sequence
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.datasets import imdb
+import datetime
+from src import utils
+from pathlib import Path
 
 def default_config(n_items, max_session_len, **kwargs):
     config = {
@@ -19,13 +22,21 @@ def default_config(n_items, max_session_len, **kwargs):
         "dense3_size": 256,
         "softmax_classes": 128,
         "temp": .01,
-        "learning_rate": 0.003,
+        "learning_rate": 0.0003,
         "maskon": 0,
         "maskoff": -np.inf,
         "batch_size": 1024,
         "epochs": 260,
+        "early_cutoff_epoch": 50,
+        "early_cutoff_score": .12,
+        "save_model": True,
+        "file_loc": str(Path(__file__).resolve()),
     }
     config.update(kwargs)
+
+    if "expr_name" not in config:
+        config["expr_name"] = utils.get_experiment_name()
+
     return config
 
 class model(Model):
@@ -79,8 +90,8 @@ class model(Model):
             kernel_initializer='GlorotNormal'
         )
 
-    @tf.function
-    def call(self, x, mask, training=False, experimental_relax_shapes=True):
+    # @tf.function
+    def call(self, x, mask, training=False):
         self.word_embedding_mtx[0].assign(tf.zeros(self.word_embedding_mtx[0].shape))
         word_embeddings = tf.nn.embedding_lookup(self.word_embedding_mtx, x)
         
@@ -131,9 +142,9 @@ class model(Model):
             logits, preds = self.call(sessions, mask, training=True)
             loss = self.get_loss(y_true=labels, logits=logits)
         gradients = tape.gradient(loss, self.trainable_variables)
-        with open("logs/log.txt", "a+") as handle:
+        # with open("logs/log.txt", "a+") as handle:
             # print("trainable vars", [i.shape for i in self.trainable_variables], file=handle)
-            print("grads", [i.numpy() for i in gradients], file=handle)
+            # print("grads", [i.numpy() for i in gradients], file=handle)
         # gradients = [tf.clip_by_value(grad, -1., 1.) for grad in gradients] # clip grads to stop nan problem
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
@@ -142,7 +153,7 @@ class model(Model):
 
         return preds, loss
 
-    @tf.function
+    # @tf.function
     def test_step(self, sessions, mask, labels, scores):
         logits, preds = self.call(sessions, mask, training=False)
         for score in scores:

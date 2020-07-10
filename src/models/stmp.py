@@ -10,18 +10,36 @@ from tensorflow.keras.preprocessing import sequence
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.datasets import imdb
 from src import utils
+import datetime
+from pathlib import Path
 
 def default_config(n_items, **kwargs):
     config = {
         "n_items": n_items,
-        "embedding_size": 512,
-        "learning_rate": 0.001,
+        "embedding_size": 100,
+        "learning_rate": 0.005,
         "maskon": 1,
         "maskoff": 0,
-        "batch_size": 1024,
-        "epochs": 500,
+        "batch_size": 512,
+        "epochs": 30,
+        "embed_std": 0.002,
+        "fc_std": 0.05,
+        "save_model": True,
+        "decay_lr": False,
+        "decay_steps": 28, # steps between step
+        "decay_rate": .95,
+        "num_dense_layers": 1,
+        "early_cutoff_score": .12,
+        "early_cutoff_epoch": 50,
+        "file_loc": str(Path(__file__).resolve()),
     }
     config.update(kwargs)
+
+    if "expr_name" in config:
+        config["expr_name"] = utils.get_experiment_name(config["expr_name"])
+    else:
+        config["expr_name"] = utils.get_experiment_name()
+
     return config
 
 class model(Model):
@@ -32,47 +50,46 @@ class model(Model):
         self.n_items = config["n_items"]
         embedding_mtx_shape = [self.n_items, config["embedding_size"]]
 
-        learning_rate = config["learning_rate"]
+        if config["decay_lr"]:
+            learning_rate = tf.keras.optimizers.schedules.ExponentialDecay(
+                initial_learning_rate=tf.constant(config["learning_rate"]), 
+                decay_steps=tf.constant(config["decay_steps"]),
+                decay_rate=tf.constant(config["decay_rate"]),
+                staircase=True
+            )
+        else:
+            learning_rate = config["learning_rate"]
+
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         self.item_embs = self.add_weight(
-            initializer=tf.random_normal_initializer(mean=0.0, stddev=0.002), 
+            initializer=tf.random_normal_initializer(mean=0.0, stddev=config["embed_std"]), 
 #             initializer=tf.random_uniform_initializer(minval=-1, maxval=1), 
             shape=embedding_mtx_shape,
             dtype=tf.float32
         )
 
-        self.hs = Dense(
-            config["embedding_size"], 
-            activation="tanh",
-            kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
-            bias_initializer=tf.zeros_initializer(),
-            dtype=tf.float32
-        )
-        self.hs2 = Dense(
-            config["embedding_size"], 
-            activation="tanh",
-            kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
-            bias_initializer=tf.zeros_initializer(),
-            dtype=tf.float32
-        )
+        self.hs = [] # allowing dense layer multiple hidden layers
+        for _ in range(config["num_dense_layers"]):
+            self.hs.append(Dense(
+                config["embedding_size"], 
+                activation="tanh",
+                kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=config["fc_std"]),
+                bias_initializer=tf.zeros_initializer(),
+                dtype=tf.float32
+            ))
 
-        self.ht = Dense(
-            config["embedding_size"], 
-            activation="tanh",
-            kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
-            bias_initializer=tf.zeros_initializer(),
-            dtype=tf.float32
-        )
-        self.ht2 = Dense(
-            config["embedding_size"], 
-            activation="tanh",
-            kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.05),
-            bias_initializer=tf.zeros_initializer(),
-            dtype=tf.float32
-        )
+        self.ht = [] # allowing dense layer multiple hidden layers
+        for _ in range(config["num_dense_layers"]):
+            self.ht.append(Dense(
+                config["embedding_size"], 
+                activation="tanh",
+                kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=config["fc_std"]),
+                bias_initializer=tf.zeros_initializer(),
+                dtype=tf.float32
+            ))
 
-    # @tf.function
+    @tf.function
     def call(self, sessions, mask, training=False):
         self.item_embs[0].assign(tf.zeros(self.item_embs[0].shape))
 
@@ -87,11 +104,14 @@ class model(Model):
         # print("ms", ms)
         mt = X_embeddings[:, -1]
         # print("mt", mt)
-        
-        hs_val = self.hs2(self.hs(ms))
-        # print("hs_val", hs_val)
-        ht_val = self.ht2(self.ht(mt))
-        # print("ht_val", ht_val)
+
+        hs_val = ms
+        for ht_layer in self.hs: # giving dense layer several hidden layers
+            hs_val = ht_layer(hs_val)
+
+        ht_val = mt
+        for ht_layer in self.ht: # giving dense layer several hidden layers
+            ht_val = ht_layer(ht_val)
 
         prod = trilinear_product(hs_val, ht_val, self.item_embs)
         # print("trilinear_product", prod)
@@ -107,7 +127,7 @@ class model(Model):
 
         return logits, softmax
 
-    # @tf.function
+    @tf.function
     def get_loss(self, y_true, logits):
         # ce_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)(y_true, logits)
         ce_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_true, logits=logits))
@@ -122,7 +142,7 @@ class model(Model):
 #         # print(ce_loss)
         return ce_loss
 
-    # @tf.function
+    @tf.function
     def train_step(self, sessions, mask, labels, scores):
         with tf.GradientTape() as tape:
             logits, preds = self.call(sessions, mask, training=True)
@@ -140,7 +160,7 @@ class model(Model):
 
         return preds, loss
 
-    # @tf.function
+    @tf.function
     def test_step(self, sessions, mask, labels, scores):
         logits, preds = self.call(sessions, mask, training=False)
         

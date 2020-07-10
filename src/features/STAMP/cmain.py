@@ -12,7 +12,7 @@ from util.FileDumpLoad import dump_file, load_file
 from util.Randomer import Randomer
 # the data path.
 
-root_path = '/home/zyf/code'
+root_path = '/home/lucastong/school/scai/STAMP2/src/features'
 project_name = '/STAMP'
 
 # the pretreatment data path.
