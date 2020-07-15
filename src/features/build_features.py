@@ -68,9 +68,8 @@ if __name__ == "__main__":
     assert(input_click_file.exists())
     
     with cwd(STAMP_folder/"datas"/"data"):
-        if not Path("yoochoose-clicks.csv").exists():
-            print(f"symlinking {input_click_file} to {Path().cwd()/'yoochoose-clicks.csv'}")
-            os.symlink(input_click_file, Path().cwd()/"yoochoose-clicks.csv")
+        if not (STAMP_folder/"datas"/"data"/"yoochoose-clicks.csv").exists():
+            os.symlink(input_click_file, STAMP_folder/"datas"/"data"/"yoochoose-clicks.csv")
         print(f"executing {Path().cwd()/'process_rsc.py'}")
         print("cwd:", Path().cwd())
         from STAMP.datas.data import process_rsc
