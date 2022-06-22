@@ -51,7 +51,7 @@ nbconvert==5.6.1
 nbformat==5.0.4
 nltk==3.2.5
 notebook==5.7.8
-numpy==1.17.3
+numpy==1.22.0
 nvidia-dali==0.19.0
 nvidia-dali-tf-plugin==0.19.0
 nvtx-plugins==0.1.7
